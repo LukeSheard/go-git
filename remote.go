@@ -15,6 +15,7 @@ import (
 	"github.com/go-git/go-git/v6/plumbing/client"
 	"github.com/go-git/go-git/v6/plumbing/format/packfile"
 	"github.com/go-git/go-git/v6/plumbing/object"
+	"github.com/go-git/go-git/v6/plumbing/protocol"
 	"github.com/go-git/go-git/v6/plumbing/protocol/capability"
 	"github.com/go-git/go-git/v6/plumbing/protocol/packp"
 	"github.com/go-git/go-git/v6/plumbing/revlist"
@@ -335,6 +336,71 @@ func (r *Remote) FetchContext(ctx context.Context, o *FetchOptions) error {
 	return err
 }
 
+// fetchRefPrefixes derives the ls-refs "ref-prefix" hints for a fetch from its
+// refspecs and tag mode, mirroring canonical git (builtin/fetch.c,
+// builtin/clone.c). HEAD is always included so default-branch resolution keeps
+// working (e.g. on clone), and refs/tags/ is added when tags are being
+// followed.
+//
+// ref-prefix is purely an optimization, so the returned prefixes must cover
+// every ref the fetch could match. When a refspec cannot be safely turned into
+// a prefix (an exact-OID source) or there are no refspecs, it returns nil to
+// request the full advertisement rather than risk under-scoping it.
+func fetchRefPrefixes(specs []config.RefSpec, tags plumbing.TagMode) []string {
+	if len(specs) == 0 {
+		return nil
+	}
+
+	prefixes := make([]string, 0, len(specs)+2)
+	for _, rs := range specs {
+		if rs.IsExactSHA1() {
+			return nil
+		}
+		src := rs.Src()
+		if src == "" {
+			return nil
+		}
+		if prefix, _, found := strings.Cut(src, "*"); found {
+			// A wildcard: the prefix is the literal part before '*'. A leading
+			// wildcard trims to an empty prefix, which would emit an invalid
+			// "ref-prefix " argument, so request the full advertisement instead
+			// of under-scoping it.
+			if prefix == "" {
+				return nil
+			}
+			prefixes = append(prefixes, prefix)
+			continue
+		}
+
+		// A HEAD source (single-branch clone, "+HEAD:...") resolves through a
+		// symref to a branch under refs/heads/. HEAD itself is appended
+		// unconditionally below, so advertise that namespace too; otherwise a
+		// v2 server that strictly honours ref-prefix omits the resolved branch
+		// and it cannot be fetched. Matches git clone.
+		if src == "HEAD" {
+			prefixes = append(prefixes, "refs/heads/")
+			continue
+		}
+
+		// A non-wildcard source may be a short name (e.g. "master"). A v2 server
+		// prefix-matches ref-prefix against the full refname, so "master" alone
+		// would never match refs/heads/master. Expand it to every candidate
+		// full name, mirroring canonical git's refspec_ref_prefixes ->
+		// expand_ref_prefix (refspec.c, refs.c).
+		for _, rule := range plumbing.RefRevParseRules {
+			prefixes = append(prefixes, fmt.Sprintf(rule, src))
+		}
+	}
+
+	// Order matches canonical git: refspec prefixes, then refs/tags/, then
+	// HEAD last (builtin/clone.c, builtin/fetch.c).
+	if tags == plumbing.AllTags || tags == plumbing.TagFollowing {
+		prefixes = append(prefixes, "refs/tags/")
+	}
+	prefixes = append(prefixes, "HEAD")
+	return prefixes
+}
+
 // Fetch fetches references along with the objects necessary to complete their
 // histories.
 //
@@ -378,6 +444,7 @@ func (r *Remote) fetch(ctx context.Context, o *FetchOptions) (sto storer.Referen
 	}
 
 	req.Command = transport.UploadPackService
+	req.Protocol = r.transportProtocol()
 	sess, err := cl.Handshake(ctx, req)
 	if err != nil {
 		return nil, err
@@ -388,7 +455,9 @@ func (r *Remote) fetch(ctx context.Context, o *FetchOptions) (sto storer.Referen
 		return nil, err
 	}
 
-	rRefs, err := sess.GetRemoteRefs(ctx, nil)
+	rRefs, err := sess.GetRemoteRefs(ctx, &transport.GetRemoteRefsOptions{
+		RefPrefixes: fetchRefPrefixes(o.RefSpecs, o.Tags),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -545,6 +614,21 @@ func newClient(rawURL string, opts []client.Option) (*client.Client, *transport.
 
 	cl := client.New(opts...)
 	return cl, &transport.Request{URL: u}, nil
+}
+
+// transportProtocol returns the wire protocol version configured for this
+// remote's repository (the protocol.version setting), defaulting to
+// config.DefaultProtocolVersion. It is used for ref discovery and fetch;
+// push always uses v0/v1, since protocol v2 has no push.
+func (r *Remote) transportProtocol() protocol.Version {
+	if r.s == nil {
+		return config.DefaultProtocolVersion
+	}
+	cfg, err := r.s.Config()
+	if err != nil || cfg == nil {
+		return config.DefaultProtocolVersion
+	}
+	return cfg.Protocol.Version
 }
 
 func (r *Remote) pruneRemotes(specs []config.RefSpec, localRefs []*plumbing.Reference, remoteRefs storer.ReferenceStorer) (bool, error) {
@@ -1290,6 +1374,7 @@ func (r *Remote) list(ctx context.Context, o *ListOptions) (rfs []*plumbing.Refe
 	}
 
 	req.Command = transport.UploadPackService
+	req.Protocol = r.transportProtocol()
 	sess, err := cl.Handshake(ctx, req)
 	if err != nil {
 		return nil, err
