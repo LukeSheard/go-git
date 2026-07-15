@@ -24,6 +24,7 @@ import (
 	"github.com/go-git/go-billy/v6"
 
 	"github.com/go-git/go-git/v6/internal/packhandle"
+	"github.com/go-git/go-git/v6/internal/pathutil"
 	"github.com/go-git/go-git/v6/plumbing"
 	formatcfg "github.com/go-git/go-git/v6/plumbing/format/config"
 	"github.com/go-git/go-git/v6/plumbing/format/idxfile"
@@ -102,7 +103,16 @@ var (
 // out of its reference sub-tree and read, overwrite, or delete unrelated
 // metadata such as .git/config. This is a defence-in-depth check at the
 // storage choke point, mirroring the containment applied to submodule names
-// in Module and canonical Git's check_refname_format.
+// in validSubmoduleName and canonical Git's check_refname_format.
+//
+// The per-component check is delegated to pathutil.IsHFSDot and
+// pathutil.IsNTFSDot with "." as the needle, exactly as validSubmoduleName
+// does: besides the bare "." and ".." cases, these reject components that
+// still resolve to ".." after HFS+ Unicode normalisation (ignored code
+// points, e.g. ".<U+200C>.") or NTFS trailing-space/period/ADS
+// canonicalisation (e.g. ".. ", "..::$INDEX_ALLOCATION"). Because a name
+// can be authored on one OS and reach this layer on another, both checks
+// run unconditionally regardless of host OS.
 func validReferenceName(name plumbing.ReferenceName) error {
 	s := string(name)
 	for i := 0; i < len(s); i++ {
@@ -114,7 +124,9 @@ func validReferenceName(name plumbing.ReferenceName) error {
 		return fmt.Errorf("%w: %q", ErrReferenceNameEscape, s)
 	}
 	for _, part := range strings.FieldsFunc(s, func(r rune) bool { return r == '/' || r == '\\' }) {
-		if part == "." || part == ".." {
+		// IsNTFSDot/IsHFSDot with a "." needle match ".." and its disguises
+		// but not a bare ".", so reject that component explicitly too.
+		if part == "." || pathutil.IsHFSDot(part, ".") || pathutil.IsNTFSDot(part, ".", "") {
 			return fmt.Errorf("%w: %q", ErrReferenceNameEscape, s)
 		}
 	}

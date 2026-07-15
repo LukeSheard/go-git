@@ -101,8 +101,55 @@ func (s *SuiteDotGit) TestReferenceNameRejectsEscapingNames() {
 	s.Error(err, "traversal must not create .git/config")
 }
 
+func (s *SuiteDotGit) TestReferenceNameRejectsWindowsDisguisedTraversal() {
+	d := New(s.EmptyFS())
+	s.Require().NoError(d.Initialize())
+
+	// On NTFS, ".." followed by trailing periods/spaces or an Alternate Data
+	// Stream / $INDEX_ALLOCATION suffix is canonicalised back to "..", so a
+	// literal `== ".."` check would miss these while the filesystem still
+	// performs the parent-directory hop. These are pure-string checks, so the
+	// containment must hold on every host, not only Windows.
+	bad := []plumbing.ReferenceName{
+		"refs/heads/..::$INDEX_ALLOCATION",
+		"refs/heads/..:$DATA",
+		"refs/heads/.. /config",
+		"refs/heads/.../config",
+	}
+	for _, n := range bad {
+		ref := plumbing.NewHashReference(n, plumbing.NewHash("e8d3ffab552895c19b9fcf7aa264d277cde33881"))
+		s.ErrorIs(d.SetRef(ref, nil), ErrReferenceNameEscape, "SetRef %q", n)
+
+		_, err := d.Ref(n)
+		s.ErrorIs(err, ErrReferenceNameEscape, "Ref %q", n)
+	}
+
+	_, err := d.fs.Stat(configPath)
+	s.Error(err, "traversal must not create .git/config")
+}
+
+func (s *SuiteDotGit) TestReferenceNameRejectsHFSDisguisedTraversal() {
+	d := New(s.EmptyFS())
+	s.Require().NoError(d.Initialize())
+
+	// HFS+ strips a set of ignorable Unicode code points during
+	// normalisation, so ".<U+200C>." (zero-width non-joiner) collapses to
+	// ".." on disk. As above, this is a string-level check that must hold
+	// regardless of host OS.
+	n := plumbing.ReferenceName("refs/heads/." + "\u200c" + "./config")
+	ref := plumbing.NewHashReference(n, plumbing.NewHash("e8d3ffab552895c19b9fcf7aa264d277cde33881"))
+	s.ErrorIs(d.SetRef(ref, nil), ErrReferenceNameEscape, "SetRef %q", n)
+
+	_, err := d.Ref(n)
+	s.ErrorIs(err, ErrReferenceNameEscape, "Ref %q", n)
+
+	_, err = d.fs.Stat(configPath)
+	s.Error(err, "traversal must not create .git/config")
+}
+
 func (s *SuiteDotGit) TestReferenceNameAcceptsBenignNames() {
 	d := New(s.EmptyFS())
+	s.Require().NoError(d.Initialize())
 	for _, n := range []plumbing.ReferenceName{
 		"HEAD", "ORIG_HEAD", "FETCH_HEAD",
 		"refs/heads/main", "refs/heads/release-1.2",
