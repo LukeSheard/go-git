@@ -17,21 +17,37 @@ type ReferenceStorage struct {
 
 // SetReference stores a reference.
 func (r *ReferenceStorage) SetReference(ctx context.Context, ref *plumbing.Reference) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	return r.dir.SetRef(ref, nil)
 }
 
 // CheckAndSetReference stores a reference after verifying the old value matches.
 func (r *ReferenceStorage) CheckAndSetReference(ctx context.Context, ref, old *plumbing.Reference) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	return r.dir.SetRef(ref, old)
 }
 
 // Reference returns the reference with the given name.
 func (r *ReferenceStorage) Reference(ctx context.Context, n plumbing.ReferenceName) (*plumbing.Reference, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	return r.dir.Ref(n)
 }
 
 // IterReferences returns an iterator over all references.
 func (r *ReferenceStorage) IterReferences(ctx context.Context) (storer.ReferenceIter, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	refs, err := r.dir.Refs()
 	if err != nil {
 		return nil, err

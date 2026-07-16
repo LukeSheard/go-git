@@ -197,6 +197,12 @@ func ResolveRef(ctx context.Context, st storage.Storer, name string, allowHash b
 		}
 	}
 
+	// A canceled context makes every candidate lookup fail; report the
+	// cancellation rather than a misleading resolution failure.
+	if err := ctx.Err(); err != nil {
+		return plumbing.ZeroHash, err
+	}
+
 	return plumbing.ZeroHash, fmt.Errorf("cannot resolve %q", name)
 }
 

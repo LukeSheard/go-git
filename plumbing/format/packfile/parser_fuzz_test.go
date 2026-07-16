@@ -89,8 +89,8 @@ func FuzzParser(f *testing.F) {
 		f.Add(pack.Bytes())
 	}
 
-	f.Fuzz(func(_ *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) {
 		p := NewParser(bytes.NewReader(data))
-		_, _ = p.Parse()
+		_, _ = p.Parse(t.Context())
 	})
 }

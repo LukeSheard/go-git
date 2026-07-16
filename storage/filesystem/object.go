@@ -468,6 +468,10 @@ func (s *ObjectStorage) PackfileWriter(ctx context.Context) (io.WriteCloser, err
 
 // SetEncodedObject adds a new object to the storage.
 func (s *ObjectStorage) SetEncodedObject(ctx context.Context, o plumbing.EncodedObject) (h plumbing.Hash, err error) {
+	if err := ctx.Err(); err != nil {
+		return plumbing.ZeroHash, err
+	}
+
 	if o.Type() == plumbing.OFSDeltaObject || o.Type() == plumbing.REFDeltaObject {
 		return plumbing.ZeroHash, plumbing.ErrInvalidType
 	}
@@ -513,6 +517,10 @@ func (s *ObjectStorage) LazyWriter() (w io.WriteCloser, wh func(typ plumbing.Obj
 // HasEncodedObject returns nil if the object exists, without actually
 // reading the object data from storage.
 func (s *ObjectStorage) HasEncodedObject(ctx context.Context, h plumbing.Hash) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	// Pack-membership-first when the index is healthy: a hit on
 	// the in-memory fanout shortcut avoids a loose Stat. If the
 	// index fails to load (e.g. a corrupt .idx on disk), fall
@@ -579,6 +587,10 @@ func (s *ObjectStorage) packfile(idx idxfile.Index, pack plumbing.Hash) (*packfi
 // EncodedObjectSize returns the plaintext size of the given object,
 // without actually reading the full object data from storage.
 func (s *ObjectStorage) EncodedObjectSize(ctx context.Context, h plumbing.Hash) (size int64, err error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
 	// Pack-membership-first when the index is healthy: a single
 	// in-memory fanout probe routes packed reads through the pack
 	// reader and skips the loose Stat. If the index fails to load
@@ -625,6 +637,10 @@ func (s *ObjectStorage) EncodedObjectSize(ctx context.Context, h plumbing.Hash) 
 // EncodedObject returns the object with the given hash, by searching for it in
 // the packfile and the git object directories.
 func (s *ObjectStorage) EncodedObject(ctx context.Context, t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var obj plumbing.EncodedObject
 	var err error
 
@@ -966,6 +982,10 @@ func (s *ObjectStorage) HashesWithPrefix(prefix []byte) ([]plumbing.Hash, error)
 // IterEncodedObjects returns an iterator for all the objects in the packfile
 // with the given type.
 func (s *ObjectStorage) IterEncodedObjects(ctx context.Context, t plumbing.ObjectType) (storer.EncodedObjectIter, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	objects, err := s.dir.Objects()
 	if err != nil {
 		return nil, err

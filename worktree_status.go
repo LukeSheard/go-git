@@ -177,9 +177,9 @@ func (w *Worktree) diffStagingWithWorktree(ctx context.Context, cfg *config.Conf
 	to := filesystem.NewRootNodeWithOptions(w.filesystem, submodules, fsOpts)
 
 	if reverse {
-		return merkletrie.DiffTree(to, from, diffTreeIsEquals)
+		return merkletrie.DiffTreeContext(ctx, to, from, diffTreeIsEquals)
 	}
-	return merkletrie.DiffTree(from, to, diffTreeIsEquals)
+	return merkletrie.DiffTreeContext(ctx, from, to, diffTreeIsEquals)
 }
 
 func (w *Worktree) collectIgnorePatterns() []gitignore.Pattern {
@@ -246,10 +246,10 @@ func (w *Worktree) diffTreeWithStaging(ctx context.Context, t *object.Tree, reve
 	to := mindex.NewRootNode(idx)
 
 	if reverse {
-		return merkletrie.DiffTree(to, from, diffTreeIsEquals)
+		return merkletrie.DiffTreeContext(ctx, to, from, diffTreeIsEquals)
 	}
 
-	return merkletrie.DiffTree(from, to, diffTreeIsEquals)
+	return merkletrie.DiffTreeContext(ctx, from, to, diffTreeIsEquals)
 }
 
 // diffTrees returns the changes between two tree objects.
@@ -262,7 +262,7 @@ func diffTrees(ctx context.Context, from, to *object.Tree) (merkletrie.Changes, 
 	if to != nil {
 		toNode = object.NewTreeRootNode(to)
 	}
-	return merkletrie.DiffTree(fromNode, toNode, diffTreeIsEquals)
+	return merkletrie.DiffTreeContext(ctx, fromNode, toNode, diffTreeIsEquals)
 }
 
 var emptyNoderHash = make([]byte, 24)
