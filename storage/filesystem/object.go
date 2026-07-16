@@ -160,7 +160,7 @@ func (s *ObjectStorage) resetAlternates() {
 // the result and cancels the remaining searches. The read lock on muA is
 // held for the duration to prevent resetAlternates from closing in-use
 // alternates.
-func findInAlternates[T any](s *ObjectStorage, fn func(*ObjectStorage) (T, error)) (T, error) {
+func findInAlternates[T any](ctx context.Context, s *ObjectStorage, fn func(*ObjectStorage) (T, error)) (T, error) {
 	var zero T
 
 	if err := s.initAlternates(); err != nil {
@@ -178,7 +178,7 @@ func findInAlternates[T any](s *ObjectStorage, fn func(*ObjectStorage) (T, error
 		return fn(s.alternates[0])
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	g := new(errgroup.Group)
@@ -412,7 +412,9 @@ func (s *ObjectStorage) loadMemoryIndexValue(h plumbing.Hash) (idx idxfile.Index
 }
 
 // RawObjectWriter returns a writer for a new loose object of the given type and size.
-func (s *ObjectStorage) RawObjectWriter(typ plumbing.ObjectType, sz int64) (w io.WriteCloser, err error) {
+//
+// TODO(ctx): propagate ctx into dotgit; it currently stops at this boundary.
+func (s *ObjectStorage) RawObjectWriter(ctx context.Context, typ plumbing.ObjectType, sz int64) (w io.WriteCloser, err error) {
 	ow, err := s.dir.NewObject()
 	if err != nil {
 		return nil, err
@@ -432,7 +434,7 @@ func (s *ObjectStorage) NewEncodedObject() plumbing.EncodedObject {
 }
 
 // PackfileWriter returns a writer for creating a new packfile.
-func (s *ObjectStorage) PackfileWriter() (io.WriteCloser, error) {
+func (s *ObjectStorage) PackfileWriter(ctx context.Context) (io.WriteCloser, error) {
 	if err := s.requireIndex(); err != nil {
 		return nil, err
 	}
@@ -465,7 +467,7 @@ func (s *ObjectStorage) PackfileWriter() (io.WriteCloser, error) {
 }
 
 // SetEncodedObject adds a new object to the storage.
-func (s *ObjectStorage) SetEncodedObject(o plumbing.EncodedObject) (h plumbing.Hash, err error) {
+func (s *ObjectStorage) SetEncodedObject(ctx context.Context, o plumbing.EncodedObject) (h plumbing.Hash, err error) {
 	if o.Type() == plumbing.OFSDeltaObject || o.Type() == plumbing.REFDeltaObject {
 		return plumbing.ZeroHash, plumbing.ErrInvalidType
 	}
@@ -510,7 +512,7 @@ func (s *ObjectStorage) LazyWriter() (w io.WriteCloser, wh func(typ plumbing.Obj
 
 // HasEncodedObject returns nil if the object exists, without actually
 // reading the object data from storage.
-func (s *ObjectStorage) HasEncodedObject(h plumbing.Hash) (err error) {
+func (s *ObjectStorage) HasEncodedObject(ctx context.Context, h plumbing.Hash) (err error) {
 	// Pack-membership-first when the index is healthy: a hit on
 	// the in-memory fanout shortcut avoids a loose Stat. If the
 	// index fails to load (e.g. a corrupt .idx on disk), fall
@@ -536,8 +538,8 @@ func (s *ObjectStorage) HasEncodedObject(h plumbing.Hash) (err error) {
 		return idxErr
 	}
 
-	_, err = findInAlternates(s, func(alt *ObjectStorage) (struct{}, error) {
-		return struct{}{}, alt.HasEncodedObject(h)
+	_, err = findInAlternates(ctx, s, func(alt *ObjectStorage) (struct{}, error) {
+		return struct{}{}, alt.HasEncodedObject(ctx, h)
 	})
 	return err
 }
@@ -576,7 +578,7 @@ func (s *ObjectStorage) packfile(idx idxfile.Index, pack plumbing.Hash) (*packfi
 
 // EncodedObjectSize returns the plaintext size of the given object,
 // without actually reading the full object data from storage.
-func (s *ObjectStorage) EncodedObjectSize(h plumbing.Hash) (size int64, err error) {
+func (s *ObjectStorage) EncodedObjectSize(ctx context.Context, h plumbing.Hash) (size int64, err error) {
 	// Pack-membership-first when the index is healthy: a single
 	// in-memory fanout probe routes packed reads through the pack
 	// reader and skips the loose Stat. If the index fails to load
@@ -615,14 +617,14 @@ func (s *ObjectStorage) EncodedObjectSize(h plumbing.Hash) (size int64, err erro
 		return 0, idxErr
 	}
 
-	return findInAlternates(s, func(alt *ObjectStorage) (int64, error) {
-		return alt.EncodedObjectSize(h)
+	return findInAlternates(ctx, s, func(alt *ObjectStorage) (int64, error) {
+		return alt.EncodedObjectSize(ctx, h)
 	})
 }
 
 // EncodedObject returns the object with the given hash, by searching for it in
 // the packfile and the git object directories.
-func (s *ObjectStorage) EncodedObject(t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
+func (s *ObjectStorage) EncodedObject(ctx context.Context, t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
 	var obj plumbing.EncodedObject
 	var err error
 
@@ -653,8 +655,8 @@ func (s *ObjectStorage) EncodedObject(t plumbing.ObjectType, h plumbing.Hash) (p
 	}
 
 	if errors.Is(err, plumbing.ErrObjectNotFound) {
-		obj, err = findInAlternates(s, func(alt *ObjectStorage) (plumbing.EncodedObject, error) {
-			return alt.EncodedObject(t, h)
+		obj, err = findInAlternates(ctx, s, func(alt *ObjectStorage) (plumbing.EncodedObject, error) {
+			return alt.EncodedObject(ctx, t, h)
 		})
 		if errors.Is(err, plumbing.ErrObjectNotFound) && idxErr != nil {
 			return nil, idxErr
@@ -674,7 +676,7 @@ func (s *ObjectStorage) EncodedObject(t plumbing.ObjectType, h plumbing.Hash) (p
 
 // DeltaObject returns the object with the given hash, by searching for
 // it in the packfile and the git object directories.
-func (s *ObjectStorage) DeltaObject(t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
+func (s *ObjectStorage) DeltaObject(ctx context.Context, t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
 	obj, err := s.getFromUnpacked(h)
 	if errors.Is(err, plumbing.ErrObjectNotFound) {
 		obj, err = s.getFromPackfile(h, true)
@@ -963,7 +965,7 @@ func (s *ObjectStorage) HashesWithPrefix(prefix []byte) ([]plumbing.Hash, error)
 
 // IterEncodedObjects returns an iterator for all the objects in the packfile
 // with the given type.
-func (s *ObjectStorage) IterEncodedObjects(t plumbing.ObjectType) (storer.EncodedObjectIter, error) {
+func (s *ObjectStorage) IterEncodedObjects(ctx context.Context, t plumbing.ObjectType) (storer.EncodedObjectIter, error) {
 	objects, err := s.dir.Objects()
 	if err != nil {
 		return nil, err
@@ -1110,7 +1112,7 @@ func hashListAsMap(l []plumbing.Hash) map[plumbing.Hash]struct{} {
 }
 
 // ForEachObjectHash iterates over every object hash in the storage.
-func (s *ObjectStorage) ForEachObjectHash(fun func(plumbing.Hash) error) error {
+func (s *ObjectStorage) ForEachObjectHash(ctx context.Context, fun func(plumbing.Hash) error) error {
 	err := s.dir.ForEachObjectHash(fun)
 	if err == storer.ErrStop {
 		return nil
@@ -1119,7 +1121,7 @@ func (s *ObjectStorage) ForEachObjectHash(fun func(plumbing.Hash) error) error {
 }
 
 // LooseObjectTime returns the modification time of a loose object.
-func (s *ObjectStorage) LooseObjectTime(hash plumbing.Hash) (time.Time, error) {
+func (s *ObjectStorage) LooseObjectTime(ctx context.Context, hash plumbing.Hash) (time.Time, error) {
 	fi, err := s.dir.ObjectStat(hash)
 	if err != nil {
 		return time.Time{}, err
@@ -1128,12 +1130,12 @@ func (s *ObjectStorage) LooseObjectTime(hash plumbing.Hash) (time.Time, error) {
 }
 
 // DeleteLooseObject removes a loose object from storage.
-func (s *ObjectStorage) DeleteLooseObject(hash plumbing.Hash) error {
+func (s *ObjectStorage) DeleteLooseObject(ctx context.Context, hash plumbing.Hash) error {
 	return s.dir.ObjectDelete(hash)
 }
 
 // ObjectPacks returns the list of packfile hashes.
-func (s *ObjectStorage) ObjectPacks() ([]plumbing.Hash, error) {
+func (s *ObjectStorage) ObjectPacks(ctx context.Context) ([]plumbing.Hash, error) {
 	return s.dir.ObjectPacks()
 }
 
@@ -1143,7 +1145,7 @@ func (s *ObjectStorage) ObjectPacks() ([]plumbing.Hash, error) {
 // findObjectInPackfile no longer claim membership for a hash that
 // lives only in the now-deleted pack. If the MRU hint pointed at the
 // deleted slot, invalidate it.
-func (s *ObjectStorage) DeleteOldObjectPackAndIndex(h plumbing.Hash, t time.Time) error {
+func (s *ObjectStorage) DeleteOldObjectPackAndIndex(ctx context.Context, h plumbing.Hash, t time.Time) error {
 	if err := s.dir.DeleteOldObjectPackAndIndex(h, t); err != nil {
 		return err
 	}

@@ -167,7 +167,7 @@ func FetchV2(ctx context.Context, st storage.Storer, req *FetchRequest, round Fe
 	}
 	if req.Depth > 0 {
 		baseArgs.Deepen = req.Depth
-		shallows, err := st.Shallow()
+		shallows, err := st.Shallow(ctx)
 		if err != nil {
 			return err
 		}
@@ -238,7 +238,7 @@ func FetchV2(ctx context.Context, st storage.Storer, req *FetchRequest, round Fe
 	}
 
 	if shallowInfo != nil {
-		if err := updateShallow(st, shallowInfo); err != nil {
+		if err := updateShallow(ctx, st, shallowInfo); err != nil {
 			return err
 		}
 	}
@@ -253,7 +253,7 @@ func streamPackfile(ctx context.Context, st storage.Storer, packReader io.Reader
 	if progress != nil {
 		demuxer.Progress = progress
 	}
-	return packfile.UpdateObjectStorage(st, demuxer)
+	return packfile.UpdateObjectStorage(ctx, st, demuxer)
 }
 
 // closeReader drains and closes r when it owns a closable resource (such as an
@@ -269,8 +269,8 @@ func closeReader(r io.Reader) {
 }
 
 // updateShallow merges a shallow-info update into st's shallow boundary.
-func updateShallow(st storage.Storer, info *packp.ShallowUpdate) error {
-	shallows, err := st.Shallow()
+func updateShallow(ctx context.Context, st storage.Storer, info *packp.ShallowUpdate) error {
+	shallows, err := st.Shallow(ctx)
 	if err != nil {
 		return err
 	}
@@ -294,5 +294,5 @@ outer:
 		}
 	}
 
-	return st.SetShallow(shallows)
+	return st.SetShallow(ctx, shallows)
 }

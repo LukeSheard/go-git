@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -23,7 +24,7 @@ type ConfigStorage struct {
 // When the worktreeConfig extension is active and a config.worktree file
 // exists, the returned config would be the worktree config overlayed over
 // the commonDir config.
-func (c *ConfigStorage) Config() (conf *config.Config, err error) {
+func (c *ConfigStorage) Config(ctx context.Context) (conf *config.Config, err error) {
 	f, err := c.dir.Config()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -79,7 +80,7 @@ func (c *ConfigStorage) Config() (conf *config.Config, err error) {
 // config is left untouched in that case. This mirrors the behaviour of
 // `git config --worktree`: worktree-specific overrides live in
 // config.worktree while shared settings remain in the common config.
-func (c *ConfigStorage) SetConfig(cfg *config.Config) (err error) {
+func (c *ConfigStorage) SetConfig(ctx context.Context, cfg *config.Config) (err error) {
 	if err = cfg.Validate(); err != nil {
 		return err
 	}
