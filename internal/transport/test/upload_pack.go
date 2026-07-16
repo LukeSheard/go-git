@@ -308,11 +308,12 @@ func (s *UploadPackSuite) TestFetchError() {
 }
 
 func (s *UploadPackSuite) countObjects(st storage.Storer) int {
-	iter, err := st.IterEncodedObjects(plumbing.AnyObject)
+	ctx := s.T().Context()
+	iter, err := st.IterEncodedObjects(ctx, plumbing.AnyObject)
 	s.Require().NoError(err)
 	defer iter.Close()
 	var count int
-	err = iter.ForEach(func(plumbing.EncodedObject) error {
+	err = iter.ForEach(ctx, func(plumbing.EncodedObject) error {
 		count++
 		return nil
 	})

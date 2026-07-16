@@ -1,9 +1,9 @@
 package packfile
 
 import (
-	"context"
 	"bufio"
 	"bytes"
+	"context"
 	"crypto"
 	"encoding/hex"
 	"errors"

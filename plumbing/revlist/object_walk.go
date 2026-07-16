@@ -77,14 +77,14 @@ func (w *objectWalk) seedWants(ctx context.Context, wants []plumbing.Hash) error
 
 		switch o.Type() {
 		case plumbing.CommitObject:
-			c, err := object.DecodeCommit(ctx, w.s, o)
+			c, err := object.DecodeCommit(w.s, o)
 			if err != nil {
 				return fmt.Errorf("decoding commit %s: %w", h, err)
 			}
 			w.wantsSeen[h] = struct{}{}
 			insertSorted(&w.wantsQueue, c)
 		case plumbing.TagObject:
-			tag, err := object.DecodeTag(ctx, w.s, o)
+			tag, err := object.DecodeTag(w.s, o)
 			if err != nil {
 				return fmt.Errorf("decoding tag %s: %w", h, err)
 			}
@@ -134,7 +134,7 @@ func (w *objectWalk) seedHaves(ctx context.Context, haves []plumbing.Hash) error
 
 		switch o.Type() {
 		case plumbing.CommitObject:
-			c, err := object.DecodeCommit(ctx, w.s, o)
+			c, err := object.DecodeCommit(w.s, o)
 			if err != nil {
 				return fmt.Errorf("decoding haves commit %s: %w", h, err)
 			}
@@ -144,7 +144,7 @@ func (w *objectWalk) seedHaves(ctx context.Context, haves []plumbing.Hash) error
 				markTreeSeen(ctx, w.s, t, w.seen)
 			}
 		case plumbing.TagObject:
-			tag, err := object.DecodeTag(ctx, w.s, o)
+			tag, err := object.DecodeTag(w.s, o)
 			if err != nil {
 				return fmt.Errorf("decoding haves tag %s: %w", h, err)
 			}
@@ -355,7 +355,7 @@ func (w *objectWalk) processCommitTrees(ctx context.Context, lc *object.Commit) 
 
 	var oldTrees []*object.Tree
 	for i := 0; i < lc.NumParents(); i++ {
-		parent, err := lc.Parent(i)
+		parent, err := lc.Parent(ctx, i)
 		if err != nil {
 			if errors.Is(err, plumbing.ErrObjectNotFound) {
 				continue // parent may be beyond haves boundary
