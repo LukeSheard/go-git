@@ -788,6 +788,9 @@ func (r *Remote) addObject(rs config.RefSpec,
 		return nil
 	}
 	if !rs.IsForceUpdate() {
+		if err := checkTagUpdate(cmd); err != nil {
+			return err
+		}
 		if err := checkFastForwardUpdate(r.s, remoteRefs, cmd); err != nil {
 			return err
 		}
@@ -836,6 +839,9 @@ func (r *Remote) addReferenceIfRefSpecMatches(rs config.RefSpec,
 			return err
 		}
 	} else if !rs.IsForceUpdate() {
+		if err := checkTagUpdate(cmd); err != nil {
+			return err
+		}
 		if err := checkFastForwardUpdate(r.s, remoteRefs, cmd); err != nil {
 			return err
 		}
@@ -865,6 +871,14 @@ func (r *Remote) checkForceWithLease(localRef *plumbing.Reference, cmd *packp.Co
 		if cmd.Old != expectedOID {
 			return fmt.Errorf("non-fast-forward update: %s", cmd.Name.String())
 		}
+	}
+
+	return nil
+}
+
+func checkTagUpdate(cmd *packp.Command) error {
+	if cmd.Name.IsTag() && cmd.Old != plumbing.ZeroHash {
+		return fmt.Errorf("tag already exists: %s", cmd.Name.String())
 	}
 
 	return nil

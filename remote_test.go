@@ -1113,6 +1113,104 @@ func (s *RemoteSuite) TestPushRejectNonFastForward() {
 	s.Equal(oldRef, newRef)
 }
 
+func (s *RemoteSuite) TestPushRejectExistingTagUpdate() {
+	server, local, remote, oldHash, newHash := s.newPushExistingTagUpdate()
+
+	err := local.Storer.SetReference(plumbing.NewHashReference("refs/tags/v1", newHash))
+	s.Require().NoError(err)
+
+	err = remote.Push(&PushOptions{RefSpecs: []config.RefSpec{
+		"refs/tags/v1:refs/tags/v1",
+	}})
+	s.ErrorContains(err, "tag already exists: refs/tags/v1")
+
+	AssertReferences(s.T(), server, map[string]string{
+		"refs/tags/v1": oldHash.String(),
+	})
+}
+
+func (s *RemoteSuite) TestPushRejectExistingTagUpdateByOID() {
+	server, _, remote, oldHash, newHash := s.newPushExistingTagUpdate()
+
+	err := remote.Push(&PushOptions{RefSpecs: []config.RefSpec{
+		config.RefSpec(newHash.String() + ":refs/tags/v1"),
+	}})
+	s.ErrorContains(err, "tag already exists: refs/tags/v1")
+
+	AssertReferences(s.T(), server, map[string]string{
+		"refs/tags/v1": oldHash.String(),
+	})
+}
+
+func (s *RemoteSuite) TestPushRejectExistingTagUpdateToAnnotatedTag() {
+	server, local, remote, oldHash, newHash := s.newPushExistingTagUpdate()
+
+	_, err := local.CreateTag("v1-annotated", newHash, &CreateTagOptions{
+		Tagger:  defaultSignature(),
+		Message: "annotated tag",
+	})
+	s.Require().NoError(err)
+
+	err = remote.Push(&PushOptions{RefSpecs: []config.RefSpec{
+		"refs/tags/v1-annotated:refs/tags/v1",
+	}})
+	s.ErrorContains(err, "tag already exists: refs/tags/v1")
+
+	AssertReferences(s.T(), server, map[string]string{
+		"refs/tags/v1": oldHash.String(),
+	})
+}
+
+func (s *RemoteSuite) TestPushForceUpdatesExistingTag() {
+	server, local, remote, _, newHash := s.newPushExistingTagUpdate()
+
+	err := local.Storer.SetReference(plumbing.NewHashReference("refs/tags/v1", newHash))
+	s.Require().NoError(err)
+
+	err = remote.Push(&PushOptions{RefSpecs: []config.RefSpec{
+		"+refs/tags/v1:refs/tags/v1",
+	}})
+	s.NoError(err)
+
+	AssertReferences(s.T(), server, map[string]string{
+		"refs/tags/v1": newHash.String(),
+	})
+}
+
+func (s *RemoteSuite) newPushExistingTagUpdate() (*Repository, *Repository, *Remote, plumbing.Hash, plumbing.Hash) {
+	s.T().Helper()
+
+	dir := s.T().TempDir()
+	remoteURL := filepath.Join(dir, "remote")
+
+	server, err := PlainInit(remoteURL, true)
+	s.Require().NoError(err)
+	s.T().Cleanup(func() { _ = server.Close() })
+
+	local, err := PlainInit(filepath.Join(dir, "local"), false)
+	s.Require().NoError(err)
+	s.T().Cleanup(func() { _ = local.Close() })
+
+	oldHash := CommitNewFile(s.T(), local, "old")
+	newHash := CommitNewFile(s.T(), local, "new")
+
+	_, err = local.CreateTag("v1", oldHash, nil)
+	s.Require().NoError(err)
+
+	remote, err := local.CreateRemote(&config.RemoteConfig{
+		Name: DefaultRemoteName,
+		URLs: []string{remoteURL},
+	})
+	s.Require().NoError(err)
+
+	err = remote.Push(&PushOptions{RefSpecs: []config.RefSpec{
+		"refs/tags/v1:refs/tags/v1",
+	}})
+	s.Require().NoError(err)
+
+	return server, local, remote, oldHash, newHash
+}
+
 func (s *RemoteSuite) TestPushForce() {
 	f := fixtures.Basic().One()
 	dotgit, dotgitErr := f.DotGit()
