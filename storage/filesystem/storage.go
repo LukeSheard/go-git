@@ -287,12 +287,20 @@ func (s *Storage) Filesystem() billy.Filesystem {
 //
 // TODO(ctx): propagate ctx into dotgit; it currently stops at this boundary.
 func (s *Storage) Init(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	return s.dir.Initialize()
 }
 
 // AddAlternate adds an alternate object directory and resets the cached
 // alternate state so that subsequent object lookups pick up the new alternate.
 func (s *Storage) AddAlternate(ctx context.Context, remote string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	if err := s.dir.AddAlternate(remote); err != nil {
 		return err
 	}

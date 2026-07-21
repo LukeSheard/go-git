@@ -106,7 +106,7 @@ func (r ReferenceStorage) CountLooseRefs(ctx context.Context) (int, error) {
 }
 
 // PackRefs honors the storer.ReferenceStorer interface.
-func (r ReferenceStorage) PackRefs(ctx context.Context) error {
+func (r ReferenceStorage) PackRefs(_ context.Context) error {
 	return nil
 }
 

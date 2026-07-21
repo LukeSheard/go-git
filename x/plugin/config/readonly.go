@@ -17,11 +17,11 @@ type readOnlyStorer struct {
 }
 
 // Config returns a deep copy of the stored configuration.
-func (s *readOnlyStorer) Config(ctx context.Context) (*config.Config, error) {
+func (s *readOnlyStorer) Config(_ context.Context) (*config.Config, error) {
 	return cloneConfig(&s.cfg), nil
 }
 
 // SetConfig always returns ErrReadOnly.
-func (s *readOnlyStorer) SetConfig(ctx context.Context, c *config.Config) error {
+func (s *readOnlyStorer) SetConfig(_ context.Context, _ *config.Config) error {
 	return ErrReadOnly
 }

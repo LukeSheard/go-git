@@ -204,7 +204,7 @@ func NewEncodedObjectSliceIter(series []plumbing.EncodedObject) *EncodedObjectSl
 // Next returns the next object from the iterator. If the iterator has reached
 // the end it will return io.EOF as an error. If the object is retrieved
 // successfully error will be nil.
-func (iter *EncodedObjectSliceIter) Next(ctx context.Context) (plumbing.EncodedObject, error) {
+func (iter *EncodedObjectSliceIter) Next(_ context.Context) (plumbing.EncodedObject, error) {
 	if len(iter.series) == 0 {
 		return nil, io.EOF
 	}

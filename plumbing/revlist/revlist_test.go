@@ -1,13 +1,12 @@
 package revlist
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
-
-	"context"
 
 	"github.com/go-git/go-billy/v6"
 	fixtures "github.com/go-git/go-git-fixtures/v6"

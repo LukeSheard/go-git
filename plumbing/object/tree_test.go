@@ -165,6 +165,8 @@ func (cs *countingStorer) EncodedObject(ctx context.Context, t plumbing.ObjectTy
 // paths with only one directory level (e.g., "vendor/foo.go").
 // This test ensures that repeated lookups in the same directory reuse
 // the cached subtree instead of fetching it from the storer each time.
+//
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *TreeSuite) TestFindEntryCacheDepth1() {
 	cs := newCountingStorer(s.Storer)
 
@@ -197,6 +199,8 @@ func (s *TreeSuite) TestFindEntryCacheDepth1() {
 // and "json/long.json") .
 // This complements TestFindEntryCacheDepth1 by testing multiple access with
 // different path in the same directory.
+//
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *TreeSuite) TestFindEntryCacheDepth2() {
 	cs := newCountingStorer(s.Storer)
 
@@ -497,7 +501,7 @@ func (s *TreeSuite) TestTreeWalkerNextNonRecursive() {
 	s.Equal(8, count)
 }
 
-func (s *TreeSuite) TestPatchContext_ToNil() {
+func (s *TreeSuite) TestPatchToNil() {
 	commit := s.commit(plumbing.NewHash("6ecf0ef2c2dffb796033e5a02219af86ec6584e5"))
 	tree, err := commit.Tree(s.T().Context())
 	s.NoError(err)

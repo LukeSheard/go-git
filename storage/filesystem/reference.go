@@ -58,15 +58,27 @@ func (r *ReferenceStorage) IterReferences(ctx context.Context) (storer.Reference
 
 // RemoveReference deletes the reference with the given name.
 func (r *ReferenceStorage) RemoveReference(ctx context.Context, n plumbing.ReferenceName) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	return r.dir.RemoveRef(n)
 }
 
 // CountLooseRefs returns the number of loose references.
 func (r *ReferenceStorage) CountLooseRefs(ctx context.Context) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
 	return r.dir.CountLooseRefs()
 }
 
 // PackRefs packs all loose references into a single packed-refs file.
 func (r *ReferenceStorage) PackRefs(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	return r.dir.PackRefs()
 }

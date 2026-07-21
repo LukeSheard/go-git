@@ -18,6 +18,10 @@ type ReflogStorage struct {
 
 // Reflog returns all reflog entries for the given reference, oldest first.
 func (r *ReflogStorage) Reflog(ctx context.Context, name plumbing.ReferenceName) ([]*reflog.Entry, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	f, err := r.dir.ReflogReader(name)
 	if f == nil || err != nil {
 		return nil, err
@@ -30,6 +34,10 @@ func (r *ReflogStorage) Reflog(ctx context.Context, name plumbing.ReferenceName)
 
 // AppendReflog appends a single entry to the reflog for the given reference.
 func (r *ReflogStorage) AppendReflog(ctx context.Context, name plumbing.ReferenceName, entry *reflog.Entry) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	f, err := r.dir.ReflogWriter(name)
 	if err != nil {
 		return err
@@ -41,5 +49,9 @@ func (r *ReflogStorage) AppendReflog(ctx context.Context, name plumbing.Referenc
 
 // DeleteReflog removes the entire reflog for the given reference.
 func (r *ReflogStorage) DeleteReflog(ctx context.Context, name plumbing.ReferenceName) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	return r.dir.DeleteReflog(name)
 }

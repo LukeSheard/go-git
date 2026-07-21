@@ -415,6 +415,10 @@ func (s *ObjectStorage) loadMemoryIndexValue(h plumbing.Hash) (idx idxfile.Index
 //
 // TODO(ctx): propagate ctx into dotgit; it currently stops at this boundary.
 func (s *ObjectStorage) RawObjectWriter(ctx context.Context, typ plumbing.ObjectType, sz int64) (w io.WriteCloser, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	ow, err := s.dir.NewObject()
 	if err != nil {
 		return nil, err
@@ -435,6 +439,10 @@ func (s *ObjectStorage) NewEncodedObject() plumbing.EncodedObject {
 
 // PackfileWriter returns a writer for creating a new packfile.
 func (s *ObjectStorage) PackfileWriter(ctx context.Context) (io.WriteCloser, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	if err := s.requireIndex(); err != nil {
 		return nil, err
 	}
@@ -693,6 +701,10 @@ func (s *ObjectStorage) EncodedObject(ctx context.Context, t plumbing.ObjectType
 // DeltaObject returns the object with the given hash, by searching for
 // it in the packfile and the git object directories.
 func (s *ObjectStorage) DeltaObject(ctx context.Context, t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	obj, err := s.getFromUnpacked(h)
 	if errors.Is(err, plumbing.ErrObjectNotFound) {
 		obj, err = s.getFromPackfile(h, true)
@@ -1133,6 +1145,10 @@ func hashListAsMap(l []plumbing.Hash) map[plumbing.Hash]struct{} {
 
 // ForEachObjectHash iterates over every object hash in the storage.
 func (s *ObjectStorage) ForEachObjectHash(ctx context.Context, fun func(plumbing.Hash) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	err := s.dir.ForEachObjectHash(fun)
 	if err == storer.ErrStop {
 		return nil
@@ -1142,6 +1158,10 @@ func (s *ObjectStorage) ForEachObjectHash(ctx context.Context, fun func(plumbing
 
 // LooseObjectTime returns the modification time of a loose object.
 func (s *ObjectStorage) LooseObjectTime(ctx context.Context, hash plumbing.Hash) (time.Time, error) {
+	if err := ctx.Err(); err != nil {
+		return time.Time{}, err
+	}
+
 	fi, err := s.dir.ObjectStat(hash)
 	if err != nil {
 		return time.Time{}, err
@@ -1151,11 +1171,19 @@ func (s *ObjectStorage) LooseObjectTime(ctx context.Context, hash plumbing.Hash)
 
 // DeleteLooseObject removes a loose object from storage.
 func (s *ObjectStorage) DeleteLooseObject(ctx context.Context, hash plumbing.Hash) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	return s.dir.ObjectDelete(hash)
 }
 
 // ObjectPacks returns the list of packfile hashes.
 func (s *ObjectStorage) ObjectPacks(ctx context.Context) ([]plumbing.Hash, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	return s.dir.ObjectPacks()
 }
 
@@ -1166,6 +1194,10 @@ func (s *ObjectStorage) ObjectPacks(ctx context.Context) ([]plumbing.Hash, error
 // lives only in the now-deleted pack. If the MRU hint pointed at the
 // deleted slot, invalidate it.
 func (s *ObjectStorage) DeleteOldObjectPackAndIndex(ctx context.Context, h plumbing.Hash, t time.Time) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	if err := s.dir.DeleteOldObjectPackAndIndex(h, t); err != nil {
 		return err
 	}

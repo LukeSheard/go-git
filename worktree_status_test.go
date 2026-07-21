@@ -185,20 +185,20 @@ func TestAddSubdirectoryForwardSlash(t *testing.T) {
 	t.Parallel()
 
 	repoDir := filepath.Join(t.TempDir(), "repo")
-	repo, err := PlainInit(repoDir, false)
+	repo, err := PlainInit(t.Context(), repoDir, false)
 	require.NoError(t, err)
 	defer func() { _ = repo.Close() }()
 
-	wt, err := repo.Worktree()
+	wt, err := repo.Worktree(t.Context())
 	require.NoError(t, err)
 
 	require.NoError(t, wt.Filesystem().MkdirAll("dir", 0o755))
 	require.NoError(t, util.WriteFile(wt.Filesystem(), "dir/foo", []byte("content"), 0o644))
 
-	_, err = wt.Add("dir/foo")
+	_, err = wt.Add(t.Context(), "dir/foo")
 	require.NoError(t, err)
 
-	idx, err := repo.Storer.Index()
+	idx, err := repo.Storer.Index(t.Context())
 	require.NoError(t, err)
 	e, err := idx.Entry("dir/foo")
 	require.NoError(t, err)

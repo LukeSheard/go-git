@@ -18,6 +18,8 @@ import (
 // commit iterator both observe cancellation instead of silently swapping in
 // a background context.
 func TestContextCancellationPropagates(t *testing.T) {
+	t.Parallel()
+
 	f := fixtures.Basic().One()
 	dotgit, err := f.DotGit()
 	require.NoError(t, err)

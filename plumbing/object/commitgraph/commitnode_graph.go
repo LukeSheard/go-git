@@ -92,7 +92,7 @@ func (c *graphCommitNode) ParentNodes() CommitNodeIter {
 	return newParentgraphCommitNodeIter(c)
 }
 
-func (c *graphCommitNode) ParentNode(ctx context.Context, i int) (CommitNode, error) {
+func (c *graphCommitNode) ParentNode(_ context.Context, i int) (CommitNode, error) {
 	if i < 0 || i >= len(c.commitData.ParentIndexes) {
 		return nil, object.ErrParentNotFound
 	}

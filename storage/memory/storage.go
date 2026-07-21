@@ -63,7 +63,7 @@ func NewStorage(o ...StorageOption) *Storage {
 	}
 
 	if opts.objectFormat != formatcfg.UnsetObjectFormat {
-		cfg := s.ConfigStorage.config()
+		cfg := s.config()
 		cfg.Extensions.ObjectFormat = opts.objectFormat
 		cfg.Core.RepositoryFormatVersion = formatcfg.Version1
 		s.oh = plumbing.FromObjectFormat(opts.objectFormat)
@@ -75,7 +75,7 @@ func NewStorage(o ...StorageOption) *Storage {
 }
 
 // SetObjectFormat configures the object format for this storage.
-func (s *Storage) SetObjectFormat(ctx context.Context, of formatcfg.ObjectFormat) error {
+func (s *Storage) SetObjectFormat(_ context.Context, of formatcfg.ObjectFormat) error {
 	switch of {
 	case formatcfg.SHA1, formatcfg.SHA256:
 	default:
@@ -97,7 +97,7 @@ func (s *Storage) SetObjectFormat(ctx context.Context, of formatcfg.ObjectFormat
 		return nil
 	}
 
-	cfg := s.ConfigStorage.config()
+	cfg := s.config()
 	cfg.Extensions.ObjectFormat = of
 	cfg.Core.RepositoryFormatVersion = formatcfg.Version1
 	s.options.objectFormat = of
@@ -126,7 +126,7 @@ type ConfigStorage struct {
 }
 
 // SetConfig stores the given config.
-func (c *ConfigStorage) SetConfig(ctx context.Context, cfg *config.Config) error {
+func (c *ConfigStorage) SetConfig(_ context.Context, cfg *config.Config) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (c *ConfigStorage) SetConfig(ctx context.Context, cfg *config.Config) error
 }
 
 // Config returns the stored config.
-func (c *ConfigStorage) Config(ctx context.Context) (*config.Config, error) {
+func (c *ConfigStorage) Config(_ context.Context) (*config.Config, error) {
 	return c.config(), nil
 }
 
@@ -157,7 +157,7 @@ type IndexStorage struct {
 
 // SetIndex stores the given index.
 // Note: this method sets idx.ModTime to simulate filesystem storage behavior.
-func (c *IndexStorage) SetIndex(ctx context.Context, idx *index.Index) error {
+func (c *IndexStorage) SetIndex(_ context.Context, idx *index.Index) error {
 	// Set ModTime to enable racy git detection in the metadata optimization.
 	idx.ModTime = time.Now()
 	c.index = idx
@@ -165,7 +165,7 @@ func (c *IndexStorage) SetIndex(ctx context.Context, idx *index.Index) error {
 }
 
 // Index returns the stored index.
-func (c *IndexStorage) Index(ctx context.Context) (*index.Index, error) {
+func (c *IndexStorage) Index(_ context.Context) (*index.Index, error) {
 	if trace.Performance.Enabled() {
 		start := time.Now()
 		defer func() {
@@ -234,7 +234,7 @@ func (o *ObjectStorage) NewEncodedObject() plumbing.EncodedObject {
 }
 
 // SetEncodedObject stores the given EncodedObject.
-func (o *ObjectStorage) SetEncodedObject(ctx context.Context, obj plumbing.EncodedObject) (plumbing.Hash, error) {
+func (o *ObjectStorage) SetEncodedObject(_ context.Context, obj plumbing.EncodedObject) (plumbing.Hash, error) {
 	h := obj.Hash()
 	o.Objects[h] = obj
 
@@ -255,7 +255,7 @@ func (o *ObjectStorage) SetEncodedObject(ctx context.Context, obj plumbing.Encod
 }
 
 // HasEncodedObject returns nil if the object exists, or an error otherwise.
-func (o *ObjectStorage) HasEncodedObject(ctx context.Context, h plumbing.Hash) (err error) {
+func (o *ObjectStorage) HasEncodedObject(_ context.Context, h plumbing.Hash) (err error) {
 	if _, ok := o.Objects[h]; !ok {
 		return plumbing.ErrObjectNotFound
 	}
@@ -263,7 +263,7 @@ func (o *ObjectStorage) HasEncodedObject(ctx context.Context, h plumbing.Hash) (
 }
 
 // EncodedObjectSize returns the size of the object with the given hash.
-func (o *ObjectStorage) EncodedObjectSize(ctx context.Context, h plumbing.Hash) (
+func (o *ObjectStorage) EncodedObjectSize(_ context.Context, h plumbing.Hash) (
 	size int64, err error,
 ) {
 	obj, ok := o.Objects[h]
@@ -275,7 +275,7 @@ func (o *ObjectStorage) EncodedObjectSize(ctx context.Context, h plumbing.Hash) 
 }
 
 // EncodedObject returns the object with the given type and hash.
-func (o *ObjectStorage) EncodedObject(ctx context.Context, t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
+func (o *ObjectStorage) EncodedObject(_ context.Context, t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
 	obj, ok := o.Objects[h]
 	if !ok || (plumbing.AnyObject != t && obj.Type() != t) {
 		return nil, plumbing.ErrObjectNotFound
@@ -285,7 +285,7 @@ func (o *ObjectStorage) EncodedObject(ctx context.Context, t plumbing.ObjectType
 }
 
 // IterEncodedObjects returns an iterator for all objects of the given type.
-func (o *ObjectStorage) IterEncodedObjects(ctx context.Context, t plumbing.ObjectType) (storer.EncodedObjectIter, error) {
+func (o *ObjectStorage) IterEncodedObjects(_ context.Context, t plumbing.ObjectType) (storer.EncodedObjectIter, error) {
 	var series []plumbing.EncodedObject
 	switch t {
 	case plumbing.AnyObject:
@@ -312,7 +312,7 @@ func flattenObjectMap(m map[plumbing.Hash]plumbing.EncodedObject) []plumbing.Enc
 }
 
 // Begin returns a new transaction.
-func (o *ObjectStorage) Begin(ctx context.Context) storer.Transaction {
+func (o *ObjectStorage) Begin(_ context.Context) storer.Transaction {
 	return &TxObjectStorage{
 		Storage: o,
 		Objects: make(map[plumbing.Hash]plumbing.EncodedObject),
@@ -320,7 +320,7 @@ func (o *ObjectStorage) Begin(ctx context.Context) storer.Transaction {
 }
 
 // ForEachObjectHash calls the given function for each object hash.
-func (o *ObjectStorage) ForEachObjectHash(ctx context.Context, fun func(plumbing.Hash) error) error {
+func (o *ObjectStorage) ForEachObjectHash(_ context.Context, fun func(plumbing.Hash) error) error {
 	for h := range o.Objects {
 		err := fun(h)
 		if err != nil {
@@ -334,29 +334,29 @@ func (o *ObjectStorage) ForEachObjectHash(ctx context.Context, fun func(plumbing
 }
 
 // ObjectPacks returns the list of object packs (always empty for in-memory storage).
-func (o *ObjectStorage) ObjectPacks(ctx context.Context) ([]plumbing.Hash, error) {
+func (o *ObjectStorage) ObjectPacks(_ context.Context) ([]plumbing.Hash, error) {
 	return nil, nil
 }
 
 // DeleteOldObjectPackAndIndex is a no-op for in-memory storage.
-func (o *ObjectStorage) DeleteOldObjectPackAndIndex(ctx context.Context, h plumbing.Hash, t time.Time) error {
+func (o *ObjectStorage) DeleteOldObjectPackAndIndex(_ context.Context, _ plumbing.Hash, _ time.Time) error {
 	return nil
 }
 
 var errNotSupported = fmt.Errorf("not supported")
 
 // LooseObjectTime returns an error as loose objects are not supported.
-func (o *ObjectStorage) LooseObjectTime(ctx context.Context, _ plumbing.Hash) (time.Time, error) {
+func (o *ObjectStorage) LooseObjectTime(_ context.Context, _ plumbing.Hash) (time.Time, error) {
 	return time.Time{}, errNotSupported
 }
 
 // DeleteLooseObject returns an error as loose objects are not supported.
-func (o *ObjectStorage) DeleteLooseObject(ctx context.Context, h plumbing.Hash) error {
+func (o *ObjectStorage) DeleteLooseObject(_ context.Context, _ plumbing.Hash) error {
 	return errNotSupported
 }
 
 // AddAlternate returns an error as alternates are not supported.
-func (o *ObjectStorage) AddAlternate(ctx context.Context, _ string) error {
+func (o *ObjectStorage) AddAlternate(_ context.Context, _ string) error {
 	return errNotSupported
 }
 
@@ -367,7 +367,7 @@ type TxObjectStorage struct {
 }
 
 // SetEncodedObject stores the given EncodedObject in the transaction.
-func (tx *TxObjectStorage) SetEncodedObject(ctx context.Context, obj plumbing.EncodedObject) (plumbing.Hash, error) {
+func (tx *TxObjectStorage) SetEncodedObject(_ context.Context, obj plumbing.EncodedObject) (plumbing.Hash, error) {
 	h := obj.Hash()
 	tx.Objects[h] = obj
 
@@ -375,7 +375,7 @@ func (tx *TxObjectStorage) SetEncodedObject(ctx context.Context, obj plumbing.En
 }
 
 // EncodedObject returns the object with the given type and hash from the transaction.
-func (tx *TxObjectStorage) EncodedObject(ctx context.Context, t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
+func (tx *TxObjectStorage) EncodedObject(_ context.Context, t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
 	obj, ok := tx.Objects[h]
 	if !ok || (plumbing.AnyObject != t && obj.Type() != t) {
 		return nil, plumbing.ErrObjectNotFound
@@ -406,7 +406,7 @@ func (tx *TxObjectStorage) Rollback() error {
 type ReferenceStorage map[plumbing.ReferenceName]*plumbing.Reference
 
 // SetReference stores the given reference.
-func (r ReferenceStorage) SetReference(ctx context.Context, ref *plumbing.Reference) error {
+func (r ReferenceStorage) SetReference(_ context.Context, ref *plumbing.Reference) error {
 	if ref != nil {
 		r[ref.Name()] = ref
 	}
@@ -415,7 +415,7 @@ func (r ReferenceStorage) SetReference(ctx context.Context, ref *plumbing.Refere
 }
 
 // CheckAndSetReference stores the reference if the old reference matches.
-func (r ReferenceStorage) CheckAndSetReference(ctx context.Context, ref, old *plumbing.Reference) error {
+func (r ReferenceStorage) CheckAndSetReference(_ context.Context, ref, old *plumbing.Reference) error {
 	if ref == nil {
 		return nil
 	}
@@ -431,7 +431,7 @@ func (r ReferenceStorage) CheckAndSetReference(ctx context.Context, ref, old *pl
 }
 
 // Reference returns the reference with the given name.
-func (r ReferenceStorage) Reference(ctx context.Context, n plumbing.ReferenceName) (*plumbing.Reference, error) {
+func (r ReferenceStorage) Reference(_ context.Context, n plumbing.ReferenceName) (*plumbing.Reference, error) {
 	ref, ok := r[n]
 	if !ok {
 		return nil, plumbing.ErrReferenceNotFound
@@ -441,7 +441,7 @@ func (r ReferenceStorage) Reference(ctx context.Context, n plumbing.ReferenceNam
 }
 
 // IterReferences returns an iterator for all references.
-func (r ReferenceStorage) IterReferences(ctx context.Context) (storer.ReferenceIter, error) {
+func (r ReferenceStorage) IterReferences(_ context.Context) (storer.ReferenceIter, error) {
 	refs := make([]*plumbing.Reference, 0, len(r))
 	for _, ref := range r {
 		refs = append(refs, ref)
@@ -451,17 +451,17 @@ func (r ReferenceStorage) IterReferences(ctx context.Context) (storer.ReferenceI
 }
 
 // CountLooseRefs returns the number of references.
-func (r ReferenceStorage) CountLooseRefs(ctx context.Context) (int, error) {
+func (r ReferenceStorage) CountLooseRefs(_ context.Context) (int, error) {
 	return len(r), nil
 }
 
 // PackRefs is a no-op.
-func (r ReferenceStorage) PackRefs(ctx context.Context) error {
+func (r ReferenceStorage) PackRefs(_ context.Context) error {
 	return nil
 }
 
 // RemoveReference removes the reference with the given name.
-func (r ReferenceStorage) RemoveReference(ctx context.Context, n plumbing.ReferenceName) error {
+func (r ReferenceStorage) RemoveReference(_ context.Context, n plumbing.ReferenceName) error {
 	delete(r, n)
 	return nil
 }
@@ -470,13 +470,13 @@ func (r ReferenceStorage) RemoveReference(ctx context.Context, n plumbing.Refere
 type ShallowStorage []plumbing.Hash
 
 // SetShallow stores the shallow commits.
-func (s *ShallowStorage) SetShallow(ctx context.Context, commits []plumbing.Hash) error {
+func (s *ShallowStorage) SetShallow(_ context.Context, commits []plumbing.Hash) error {
 	*s = commits
 	return nil
 }
 
 // Shallow returns the shallow commits.
-func (s ShallowStorage) Shallow(ctx context.Context) ([]plumbing.Hash, error) {
+func (s ShallowStorage) Shallow(_ context.Context) ([]plumbing.Hash, error) {
 	return s, nil
 }
 
@@ -484,7 +484,7 @@ func (s ShallowStorage) Shallow(ctx context.Context) ([]plumbing.Hash, error) {
 type ModuleStorage map[string]*Storage
 
 // Module returns the storage for the given submodule.
-func (s ModuleStorage) Module(ctx context.Context, name string) (storage.Storer, error) {
+func (s ModuleStorage) Module(_ context.Context, name string) (storage.Storer, error) {
 	if m, ok := s[name]; ok {
 		return m, nil
 	}
@@ -501,7 +501,7 @@ type ReflogStorage struct {
 }
 
 // Reflog returns the reflog entries for the given reference.
-func (r *ReflogStorage) Reflog(ctx context.Context, name plumbing.ReferenceName) ([]*reflog.Entry, error) {
+func (r *ReflogStorage) Reflog(_ context.Context, name plumbing.ReferenceName) ([]*reflog.Entry, error) {
 	if r.entries == nil {
 		return nil, nil
 	}
@@ -509,7 +509,7 @@ func (r *ReflogStorage) Reflog(ctx context.Context, name plumbing.ReferenceName)
 }
 
 // AppendReflog appends a single entry to the reflog for the given reference.
-func (r *ReflogStorage) AppendReflog(ctx context.Context, name plumbing.ReferenceName, entry *reflog.Entry) error {
+func (r *ReflogStorage) AppendReflog(_ context.Context, name plumbing.ReferenceName, entry *reflog.Entry) error {
 	if r.entries == nil {
 		r.entries = make(map[plumbing.ReferenceName][]*reflog.Entry)
 	}
@@ -518,7 +518,7 @@ func (r *ReflogStorage) AppendReflog(ctx context.Context, name plumbing.Referenc
 }
 
 // DeleteReflog removes the entire reflog for the given reference.
-func (r *ReflogStorage) DeleteReflog(ctx context.Context, name plumbing.ReferenceName) error {
+func (r *ReflogStorage) DeleteReflog(_ context.Context, name plumbing.ReferenceName) error {
 	if r.entries != nil {
 		delete(r.entries, name)
 	}

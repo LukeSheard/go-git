@@ -131,7 +131,7 @@ func NewReferenceSliceIter(series []*plumbing.Reference) ReferenceIter {
 
 // Next returns the next reference from the iterator. If the iterator has
 // reached the end it will return io.EOF as an error.
-func (iter *ReferenceSliceIter) Next(ctx context.Context) (*plumbing.Reference, error) {
+func (iter *ReferenceSliceIter) Next(_ context.Context) (*plumbing.Reference, error) {
 	if iter.pos >= len(iter.series) {
 		return nil, io.EOF
 	}

@@ -1308,6 +1308,8 @@ func TestWorktreeConfig(t *testing.T) {
 	})
 }
 
+// The fuzz targets use context.Background instead of t.Context: OSS-Fuzz
+// builds them with a shim testing.T that has no Context method.
 func FuzzAdd(f *testing.F) {
 	f.Add("test")
 	f.Add("test-worktree")
@@ -1338,7 +1340,7 @@ func FuzzAdd(f *testing.F) {
 		wtFS := memfs.New()
 		commit := plumbing.NewHash("af2d6a6954d532f8ffb47615169c8fdf9d383a1a")
 
-		_ = w.Add(t.Context(), wtFS, name, WithCommit(commit), WithDetachedHead())
+		_ = w.Add(context.Background(), wtFS, name, WithCommit(commit), WithDetachedHead())
 	})
 }
 
@@ -1369,7 +1371,7 @@ func FuzzOpen(f *testing.F) {
 		err = util.WriteFile(wtFS, ".git", []byte(gitFileContent), 0o644)
 		require.NoError(t, err, "failed to write .git file")
 
-		repo, err := w.Open(t.Context(), wtFS)
+		repo, err := w.Open(context.Background(), wtFS)
 		if repo != nil {
 			defer func() { _ = repo.Close() }()
 		}

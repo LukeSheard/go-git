@@ -1435,6 +1435,7 @@ func (s *WorktreeSuite) TestResetWithUntracked() {
 	}
 }
 
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *WorktreeSuite) TestResetSoft() {
 	fs := memfs.New()
 	w := &Worktree{
@@ -1460,6 +1461,7 @@ func (s *WorktreeSuite) TestResetSoft() {
 	s.Equal(Added, status.File("CHANGELOG").Staging)
 }
 
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *WorktreeSuite) TestResetMixed() {
 	fs := memfs.New()
 	w := &Worktree{

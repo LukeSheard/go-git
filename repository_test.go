@@ -3136,6 +3136,7 @@ func (s *RepositorySuite) TestCommit() {
 	s.Equal("daniel@lordran.local", commit.Author.Email)
 }
 
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *RepositorySuite) TestCommits() {
 	r, _ := Init(s.T().Context(), memory.NewStorage())
 	defer func() { _ = r.Close() }()
@@ -3183,6 +3184,7 @@ func (s *RepositorySuite) TestBlob() {
 	s.Equal(plumbing.BlobObject, blob.Type())
 }
 
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *RepositorySuite) TestBlobs() {
 	r, _ := Init(s.T().Context(), memory.NewStorage())
 	defer func() { _ = r.Close() }()
@@ -3226,6 +3228,7 @@ func (s *RepositorySuite) TestTagObject() {
 	s.Equal(plumbing.TagObject, tag.Type())
 }
 
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *RepositorySuite) TestTags() {
 	url := s.GetLocalRepositoryURL(
 		fixtures.ByURL("https://github.com/git-fixtures/tags.git").One(),
@@ -3602,6 +3605,7 @@ func (s *RepositorySuite) TestBranches() {
 	s.Equal(8, count)
 }
 
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *RepositorySuite) TestNotes() {
 	// TODO add fixture with Notes
 	url := s.GetLocalRepositoryURL(

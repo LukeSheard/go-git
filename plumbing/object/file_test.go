@@ -116,6 +116,7 @@ hs_err_pid*
 	},
 }
 
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *FileSuite) TestContents() {
 	for i, t := range contentsTests {
 		f := fixtures.ByURL(t.repo).One()
@@ -172,6 +173,7 @@ var linesTests = []struct {
 	},
 }
 
+//nolint:dupl // intentional parallel structure with its sibling test
 func (s *FileSuite) TestLines() {
 	for i, t := range linesTests {
 		f := fixtures.ByURL(t.repo).One()

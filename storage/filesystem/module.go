@@ -19,6 +19,10 @@ type ModuleStorage struct {
 
 // Module returns the storage for the named submodule.
 func (s *ModuleStorage) Module(ctx context.Context, name string) (storage.Storer, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	fs, err := s.dir.Module(name)
 	if err != nil {
 		return nil, err

@@ -93,6 +93,6 @@ func (c *objectCommitNode) GenerationV2() uint64 {
 	return math.MaxUint64
 }
 
-func (c *objectCommitNode) Commit(ctx context.Context) (*object.Commit, error) {
+func (c *objectCommitNode) Commit(_ context.Context) (*object.Commit, error) {
 	return c.commit, nil
 }

@@ -26,6 +26,10 @@ type IndexStorage struct {
 //
 // TODO(ctx): propagate ctx into dotgit; it currently stops at this boundary.
 func (s *IndexStorage) SetIndex(ctx context.Context, idx *index.Index) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	if err := s.writeIndex(idx); err != nil {
 		return err
 	}
@@ -69,6 +73,10 @@ func (s *IndexStorage) writeIndex(idx *index.Index) (err error) {
 
 // Index reads the index from disk, using the cache when available.
 func (s *IndexStorage) Index(ctx context.Context) (i *index.Index, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	if trace.Performance.Enabled() {
 		start := time.Now()
 		defer func() {

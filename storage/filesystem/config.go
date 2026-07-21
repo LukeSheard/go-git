@@ -25,6 +25,10 @@ type ConfigStorage struct {
 // exists, the returned config would be the worktree config overlayed over
 // the commonDir config.
 func (c *ConfigStorage) Config(ctx context.Context) (conf *config.Config, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	f, err := c.dir.Config()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -81,6 +85,10 @@ func (c *ConfigStorage) Config(ctx context.Context) (conf *config.Config, err er
 // `git config --worktree`: worktree-specific overrides live in
 // config.worktree while shared settings remain in the common config.
 func (c *ConfigStorage) SetConfig(ctx context.Context, cfg *config.Config) (err error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	if err = cfg.Validate(); err != nil {
 		return err
 	}

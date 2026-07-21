@@ -18,7 +18,7 @@ type objectIter struct {
 // boundary do not take a context yet.
 //
 // TODO(ctx): propagate ctx into Packfile reads.
-func (i *objectIter) Next(ctx context.Context) (plumbing.EncodedObject, error) {
+func (i *objectIter) Next(_ context.Context) (plumbing.EncodedObject, error) {
 	if err := i.p.init(); err != nil {
 		return nil, err
 	}
